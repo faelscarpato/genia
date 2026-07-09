@@ -1,4 +1,4 @@
-import { AIOrchestrator } from '../orchestrator';
+import { AIOrchestrateur } from '../orchestrator';
 import { PipelineResult } from '../types';
 
 /**
@@ -15,17 +15,14 @@ export async function runDocumentPipeline(
     apiKey: string;
   }
 ): Promise<PipelineResult> {
-  const orchestrator = new AIOrchestrator(context.apiKey, context.provider);
-  
+  const orchestrator = new AIOrchestrateur(context.apiKey, context.provider);
+
   // Execução do processamento de IA
-  const result = await orchestrator.processDocument(content, context.rules);
-  
-  // Persistência e Auditoria seriam chamadas aqui
-  // result.id serve como tracking para o log de auditoria no Supabase
-  
-  if (result.status === 'error') {
-    console.error(`[Pipeline Error] ${result.id}: ${result.error}`);
-  }
+  const result = await orchestrator.processDocument(
+    content,
+    context.organizationId,
+    context.rules
+  );
 
   return result;
 }
