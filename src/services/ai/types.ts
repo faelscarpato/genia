@@ -26,3 +26,7 @@ export interface PipelineStep {
   result?: any;
   error?: string;
 }
+
+
+// Re-exporta PipelineResult do orquestrador para compatibilidade de imports
+export type { PipelineResult } from './orchestrator';
