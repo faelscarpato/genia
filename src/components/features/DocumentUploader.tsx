@@ -1,8 +1,6 @@
 import React, { useState, useRef } from 'react';
-import type { GenealogyDocument, Person } from '../../types';
-import { utils } from '../../utils/utils';
+import type { Person } from '../../types';
 import DocumentViewer from './DocumentViewer';
-import TranscriptionPanel from './TranscriptionPanel';
 
 const TAMANHO_MAXIMO_MB = 10;
 const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'application/pdf'];
