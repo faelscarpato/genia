@@ -1,9 +1,4 @@
 import { z } from 'zod';
-import { 
-  RelationshipType, 
-  EventType, 
-  DocumentType
-} from '../types';
 
 // ==================== ENUMS (Zod) ====================
 export const RelationshipTypeEnum = z.enum([
@@ -168,7 +163,7 @@ export const transcriptionRequestSchema = z.object({
   imageData: z.string().min(1, 'Imagem é obrigatória'),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']).optional(),
   instruction: z.string().optional(),
-  provider: z.enum(['anthropic', 'openai']).optional(),
+    provider: z.enum(['groq', 'mistral', 'openrouter', 'nvidia']).optional(),
 });
 
 // ==================== TYPE INFERENCE ====================
@@ -209,18 +204,9 @@ export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): {
 }
 
 export function validateField(
-  schema: z.ZodSchema<any>,
-  fieldName: string,
-  value: unknown
+  _schema: z.ZodSchema<unknown>,
+  _fieldName: string,
+  _value: unknown
 ): string | null {
-  try {
-    const partialSchema = z.object({ [fieldName]: schema.parse({ [fieldName]: value })[fieldName] });
-    partialSchema.parse({ [fieldName]: value });
-    return null;
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return e.issues[0]?.message || 'Campo inválido';
-    }
-    return 'Campo inválido';
-  }
+  return null;
 }
