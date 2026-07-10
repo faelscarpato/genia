@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { AppLayout } from '../layout/AppLayout';
 import { GlobalSearch } from '../ui/GlobalSearch';
 import { NotificationPanel } from '../ui/NotificationPanel';
