@@ -1,37 +1,41 @@
-name = "genealogia-ia-proxy"
+name = "geniatree"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Configuração de observabilidade
+# Observabilidade
 [observability]
 enabled = true
 
-# Variáveis de ambiente (não-secretas)
+# [vars] = variaveis NAO-secretas (publicas no wrangler.toml)
+# ALLOWED_ORIGIN controla quem pode chamar este Worker (CORS)
+# Durante dev local: localhost:3000
+# Em producao: URL do Pages
 [vars]
 ALLOWED_ORIGIN = "http://localhost:3000"
-# Em produção, atualize para a URL real do frontend:
-# ALLOWED_ORIGIN = "https://genealogia-ia.pages.dev"
 
-# Workers Secrets (configure via CLI):
-# wrangler secret put ANTHROPIC_API_KEY
-# wrangler secret put OPENAI_API_KEY
-# wrangler secret put PROXY_SECRET
-
-# Ambiente de desenvolvimento
+# Ambiente de desenvolvimento (npx wrangler dev)
 [env.dev]
-name = "genealogia-ia-proxy-dev"
-
+name = "geniatree-dev"
 [env.dev.vars]
 ALLOWED_ORIGIN = "http://localhost:3000"
 
-# Ambiente de produção
+# Ambiente de producao (npx wrangler deploy --env production)
 [env.production]
-name = "genealogia-ia-proxy"
-
+name = "geniatree"
 [env.production.vars]
-ALLOWED_ORIGIN = "https://genealogia-ia.pages.dev"
+ALLOWED_ORIGIN = "https://geniatree.pages.dev"
 
-# Limites de CPU/memória
+# Limites
 [limits]
 cpu_ms = 30000
+
+# =============================================================
+# SECRETS - configurar via CLI APOS o deploy:
+#   cd ai-proxy
+#   npx wrangler secret put GROQ_API_KEY        --env production
+#   npx wrangler secret put MISTRAL_API_KEY     --env production
+#   npx wrangler secret put OPENROUTER_API_KEY  --env production
+#   npx wrangler secret put NVIDIA_API_KEY      --env production
+#   npx wrangler secret put PROXY_SECRET        --env production
+# =============================================================
