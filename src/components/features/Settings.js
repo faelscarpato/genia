@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
 import GedcomImporter from './GedcomImporter';
 import useApp from '../../hooks/useApp';
