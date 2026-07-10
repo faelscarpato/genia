@@ -2,7 +2,7 @@
  * @module ai-proxy
  * @description Cloudflare Worker — proxy seguro para Groq, Mistral, OpenRouter e Nvidia.
  * URL producao: https://geniatree.faelscarpato.workers.dev
- *
+ * 
  * Endpoints:
  *   POST /transcribe  — Processa texto via IA genealogica
  *   GET  /health      — Verifica provedores configurados
