@@ -1,0 +1,67 @@
+# === DEPENDENCIAS ===
+node_modules/
+.pnp
+.pnp.js
+
+# === BUILD OUTPUTS ===
+build/
+dist/
+.next/
+out/
+.cache/
+.parcel-cache/
+
+# === ENVIRONMENT — NUNCA COMMITAR ===
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+
+# === LOGS ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === RUNTIME DATA ===
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# === COBERTURA DE TESTES ===
+coverage/
+*.lcov
+.nyc_output
+
+# === EDITOR / IDE ===
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === TYPESCRIPT ===
+*.tsbuildinfo
+
+# === CLOUDFLARE / WRANGLER ===
+.wrangler/
+ai-proxy/.wrangler/
+ai-proxy/node_modules/
+
+# === MISC ===
+*.local
+.eslintcache
+.stylelintcache
+*.tgz
+.yarn-integrity
