@@ -1,6 +1,5 @@
 import type GenealogyDB from '../../services/GenealogyDB';
-import type { Person, GenealogyEvent, Source, Relationship, Family } from '../../types';
-import { utils } from '../utils';
+import type { Person, GenealogyEvent, Source, Relationship } from '../../types';
 
 /**
  * Exporta a árvore genealógica no formato GEDCOM 5.5.1.
