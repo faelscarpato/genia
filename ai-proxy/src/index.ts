@@ -1,56 +1,71 @@
 /**
  * @module ai-proxy
  * @description Cloudflare Worker — proxy seguro para Groq, Mistral, OpenRouter e Nvidia.
+ * URL producao: https://geniatree.faelscarpato.workers.dev
  *
  * Endpoints:
- *   POST /transcribe  — Processa texto/imagem via IA genealogica
- *   GET  /health      — Verifica se o Worker esta ativo
+ *   POST /transcribe  — Processa texto via IA genealogica
+ *   GET  /health      — Verifica provedores configurados
  */
 
 export interface Env {
-  /** wrangler secret put GROQ_API_KEY */
   GROQ_API_KEY: string;
-  /** wrangler secret put MISTRAL_API_KEY */
   MISTRAL_API_KEY: string;
-  /** wrangler secret put OPENROUTER_API_KEY */
   OPENROUTER_API_KEY: string;
-  /** wrangler secret put NVIDIA_API_KEY */
   NVIDIA_API_KEY: string;
-  /** wrangler secret put PROXY_SECRET */
   PROXY_SECRET: string;
-  /** Definido em wrangler.toml [vars] */
   ALLOWED_ORIGIN: string;
 }
 
 type Provider = 'groq' | 'mistral' | 'openrouter' | 'nvidia';
 
-const PROVIDER_CONFIGS: Record<Provider, { url: string; defaultModel: string }> = {
+// Configuracoes exatas de cada provider conforme documentacao oficial
+const PROVIDER_CONFIGS: Record<Provider, {
+  url: string;
+  defaultModel: string;
+  defaultTemp: number;
+  maxTokens: number;
+  topP: number;
+}> = {
   groq: {
     url: 'https://api.groq.com/openai/v1/chat/completions',
     defaultModel: 'llama-3.3-70b-versatile',
+    defaultTemp: 1,
+    maxTokens: 1024,
+    topP: 1,
   },
   mistral: {
+    // Endpoint chat/completions (compativel OpenAI, sem stream, sem SDK)
     url: 'https://api.mistral.ai/v1/chat/completions',
     defaultModel: 'mistral-large-latest',
+    defaultTemp: 0.7,
+    maxTokens: 2048,
+    topP: 1,
   },
   openrouter: {
     url: 'https://openrouter.ai/api/v1/chat/completions',
     defaultModel: 'meta-llama/llama-3.3-70b-instruct',
+    defaultTemp: 0.2,
+    maxTokens: 1024,
+    topP: 1,
   },
   nvidia: {
     url: 'https://integrate.api.nvidia.com/v1/chat/completions',
     defaultModel: 'meta/llama-3.3-70b-instruct',
+    defaultTemp: 0.2,
+    maxTokens: 1024,
+    topP: 0.7,
   },
 };
 
 function getApiKey(provider: Provider, env: Env): string {
-  const keys: Record<Provider, string> = {
+  const map: Record<Provider, string> = {
     groq: env.GROQ_API_KEY,
     mistral: env.MISTRAL_API_KEY,
     openrouter: env.OPENROUTER_API_KEY,
     nvidia: env.NVIDIA_API_KEY,
   };
-  return keys[provider] || '';
+  return map[provider] || '';
 }
 
 function corsHeaders(origin: string): Record<string, string> {
@@ -70,31 +85,51 @@ function autenticado(request: Request, env: Env): boolean {
 async function chamarProvider(
   provider: Provider,
   apiKey: string,
-  model: string | undefined,
-  messages: any[]
+  messages: { role: string; content: string }[],
+  modelOverride?: string
 ): Promise<Response> {
-  const config = PROVIDER_CONFIGS[provider];
-  const modelUsado = model || config.defaultModel;
+  const cfg = PROVIDER_CONFIGS[provider];
+  const model = modelOverride || cfg.defaultModel;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
+    'Accept': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
   };
 
-  // OpenRouter exige headers adicionais
+  // OpenRouter exige headers extras para ranking
   if (provider === 'openrouter') {
     headers['HTTP-Referer'] = 'https://geniatree.pages.dev';
-    headers['X-Title'] = 'Genealogia IA';
+    headers['X-Title'] = 'Genealogia IA - Geniatree';
   }
 
-  const body = JSON.stringify({
-    model: modelUsado,
+  const bodyObj: Record<string, unknown> = {
+    model,
     messages,
-    temperature: 0.2,
-    max_tokens: 1024,
-  });
+    temperature: cfg.defaultTemp,
+    max_tokens: cfg.maxTokens,
+    top_p: cfg.topP,
+    stream: false,
+  };
 
-  return fetch(config.url, { method: 'POST', headers, body });
+  // Groq usa max_completion_tokens (alias de max_tokens na v1)
+  if (provider === 'groq') {
+    delete bodyObj.max_tokens;
+    bodyObj.max_completion_tokens = cfg.maxTokens;
+    bodyObj.stop = null;
+  }
+
+  // Nvidia exige frequency_penalty e presence_penalty
+  if (provider === 'nvidia') {
+    bodyObj.frequency_penalty = 0;
+    bodyObj.presence_penalty = 0;
+  }
+
+  return fetch(cfg.url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(bodyObj),
+  });
 }
 
 export default {
@@ -109,12 +144,13 @@ export default {
 
     const url = new URL(request.url);
 
-    // GET /health
+    // GET /health — retorna status de cada provider
     if (request.method === 'GET' && url.pathname === '/health') {
       return new Response(
         JSON.stringify({
           status: 'ok',
           timestamp: new Date().toISOString(),
+          worker: 'geniatree-ai-proxy',
           providers: {
             groq: !!env.GROQ_API_KEY,
             mistral: !!env.MISTRAL_API_KEY,
@@ -126,9 +162,9 @@ export default {
       );
     }
 
-    // POST /transcribe
+    // POST /transcribe — endpoint principal de extracao genealogica
     if (request.method === 'POST' && url.pathname === '/transcribe') {
-      // Autenticacao
+
       if (!autenticado(request, env)) {
         return new Response(JSON.stringify({ error: 'Nao autorizado' }), {
           status: 401,
@@ -146,10 +182,13 @@ export default {
         });
       }
 
-      const provider: Provider = body.provider || 'groq';
-      const model: string | undefined = body.model;
+      const provider: Provider = (['groq', 'mistral', 'openrouter', 'nvidia'].includes(body.provider))
+        ? body.provider
+        : 'groq'; // fallback padrao
+
       const content: string = body.content || '';
       const task: string = body.task || 'genealogy_extraction';
+      const modelOverride: string | undefined = body.model;
 
       if (!content) {
         return new Response(JSON.stringify({ error: 'Campo content e obrigatorio' }), {
@@ -161,15 +200,14 @@ export default {
       const apiKey = getApiKey(provider, env);
       if (!apiKey) {
         return new Response(
-          JSON.stringify({ error: `Chave de API nao configurada para provider: ${provider}` }),
+          JSON.stringify({ error: `API key nao configurada para: ${provider}. Configure via wrangler secret put.` }),
           { status: 503, headers: { ...cors, 'Content-Type': 'application/json' } }
         );
       }
 
-      const systemPrompt =
-        task === 'genealogy_extraction'
-          ? `Voce e um especialista em genealogia brasileira. Extraia do texto as seguintes informacoes em JSON: full_name, birth_date, father_name, mother_name, location, confidence (0-1). Responda APENAS com o JSON, sem explicacoes.`
-          : `Analise o documento genealogico fornecido e responda em JSON.`;
+      const systemPrompt = task === 'genealogy_extraction'
+        ? 'Voce e um especialista em genealogia brasileira. Extraia do texto as seguintes informacoes e responda APENAS com JSON valido, sem markdown, sem explicacoes: { "full_name": string, "birth_date": string|null, "father_name": string|null, "mother_name": string|null, "location": string|null, "confidence": number }'
+        : 'Analise o documento genealogico fornecido e responda em JSON.';
 
       const messages = [
         { role: 'system', content: systemPrompt },
@@ -177,23 +215,23 @@ export default {
       ];
 
       try {
-        const aiResponse = await chamarProvider(provider, apiKey, model, messages);
+        const aiResponse = await chamarProvider(provider, apiKey, messages, modelOverride);
 
         if (!aiResponse.ok) {
           const errText = await aiResponse.text();
           return new Response(
-            JSON.stringify({ error: `Erro no provider ${provider}`, detail: errText }),
+            JSON.stringify({ error: `Erro no provider ${provider}`, status: aiResponse.status, detail: errText }),
             { status: 502, headers: { ...cors, 'Content-Type': 'application/json' } }
           );
         }
 
         const aiData: any = await aiResponse.json();
-        const rawText = aiData?.choices?.[0]?.message?.content || '';
+        const rawText: string = aiData?.choices?.[0]?.message?.content || '';
 
-        let extraction: any = {};
+        // Tenta parsear JSON limpo (remove markdown se vier)
+        let extraction: any;
         try {
-          // Remove markdown code blocks se existir
-          const cleaned = rawText.replace(/```json|```/g, '').trim();
+          const cleaned = rawText.replace(/```json\s?|```/g, '').trim();
           extraction = JSON.parse(cleaned);
         } catch {
           extraction = { raw_reasoning: rawText, confidence: 0 };
@@ -203,6 +241,7 @@ export default {
           status: 200,
           headers: { ...cors, 'Content-Type': 'application/json' },
         });
+
       } catch (err: any) {
         return new Response(
           JSON.stringify({ error: 'Erro interno no Worker', detail: err?.message }),
@@ -211,7 +250,6 @@ export default {
       }
     }
 
-    // 404 para qualquer outra rota
     return new Response(JSON.stringify({ error: 'Rota nao encontrada' }), {
       status: 404,
       headers: { ...cors, 'Content-Type': 'application/json' },
