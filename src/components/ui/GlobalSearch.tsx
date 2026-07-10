@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSearch } from '../../hooks/useSearch';
 import type { Person, GenealogyEvent, GenealogyDocument, Source } from '../../types';
@@ -41,7 +41,7 @@ export function GlobalSearch() {
     rota: string;
   };
 
-  const itensPlanificados: ItemBusca[] = [];
+  const itensPlanificados = useMemo<ItemBusca[]>(() => [], []);
 
   if (results) {
     results.persons.forEach((p: Person) => {
@@ -165,7 +165,7 @@ export function GlobalSearch() {
           onKeyDown={handleKeyDown}
           placeholder="Buscar pessoas, eventos, documentos..."
           aria-label="Busca global"
-          aria-expanded={mostrarDropdown}
+          
           aria-haspopup="listbox"
           className="
             w-full pl-10 pr-9 py-2 rounded-xl
